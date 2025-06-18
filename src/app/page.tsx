@@ -1,103 +1,121 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState } from 'react';
+import { useMemos } from '../hooks/useMemos';
+import { useAutoSave } from '../hooks/useAutoSave';
+import { Header } from '../components/layout/Header';
+import { MemoSidebar } from '../components/memo/MemoSidebar';
+import { MemoEditor } from '../components/memo/MemoEditor';
+import { ConfirmDeleteModal } from '../components/ui/Modal';
+import { Memo } from '../types/memo';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const {
+    memos,
+    filteredMemos,
+    currentMemo,
+    isLoading,
+    saveStatus,
+    searchQuery,
+    createMemo,
+    updateMemo,
+    deleteMemo,
+    setCurrentMemo,
+    setSearchQuery,
+    clearSearch,
+  } = useMemos();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // 削除確認モーダルの状態
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // 自動保存機能
+  const { saveStatus: autoSaveStatus } = useAutoSave({
+    data: currentMemo?.content || '',
+    onSave: async () => {
+      if (currentMemo) {
+        await updateMemo(currentMemo.id, currentMemo.content);
+      }
+    },
+    enabled: !!currentMemo,
+  });
+
+  // 新規メモ作成
+  const handleNewNote = async () => {
+    try {
+      await createMemo('');
+    } catch (error) {
+      console.error('Failed to create new memo:', error);
+    }
+  };
+
+  // メモ選択
+  const handleMemoSelect = (memo: Memo) => {
+    setCurrentMemo(memo);
+  };
+
+  // メモ内容変更
+  const handleContentChange = (content: string) => {
+    if (currentMemo) {
+      setCurrentMemo({ ...currentMemo, content });
+    }
+  };
+
+  // 削除処理
+  const handleDelete = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (currentMemo) {
+      try {
+        await deleteMemo(currentMemo.id);
+      } catch (error) {
+        console.error('Failed to delete memo:', error);
+      }
+    }
+  };
+
+  // 実際の保存状態を決定（自動保存とメモフックの状態を統合）
+  const currentSaveStatus = autoSaveStatus || saveStatus;
+
+  return (
+    <div className="h-screen flex flex-col bg-background">
+      {/* ヘッダー */}
+      <Header onNewNote={handleNewNote} />
+
+      {/* メインコンテンツ（左右分割） */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* 左サイドバー */}
+        <MemoSidebar
+          memos={memos}
+          filteredMemos={filteredMemos}
+          currentMemo={currentMemo}
+          searchQuery={searchQuery}
+          isLoading={isLoading}
+          onMemoSelect={handleMemoSelect}
+          onSearchChange={setSearchQuery}
+          onSearchClear={clearSearch}
+        />
+
+        {/* 右エディタエリア */}
+        <div className="flex-1 flex flex-col">
+          <MemoEditor
+            memo={currentMemo}
+            saveStatus={currentSaveStatus}
+            onContentChange={handleContentChange}
+            onDelete={handleDelete}
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      {/* 削除確認モーダル */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete this note?"
+        message="This action cannot be undone."
+      />
     </div>
   );
 }
